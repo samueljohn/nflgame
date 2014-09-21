@@ -39,7 +39,7 @@
 # list (small potatoes) and perhaps a few HEAD/GET requests if there happens to
 # be a new player found.
 
-from __future__ import absolute_import, division, print_function
+
 import argparse
 import json
 import multiprocessing.pool
@@ -72,8 +72,8 @@ def initial_mappings(conf):
     metas, reverse = {}, {}
     try:
         with open(conf.json_update_file) as fp:
-            metas = json.load(fp)
-        for gsis_id, meta in metas.items():
+            metas = json.load(fp).decode("utf-8")
+        for gsis_id, meta in list(metas.items()):
             reverse[meta['profile_id']] = gsis_id
     except IOError as e:
         eprint('Could not open "%s": %s' % (conf.json_update_file, e))
@@ -166,7 +166,7 @@ def meta_from_soup_row(team, soup_row):
     if ',' not in name:
         last_name, first_name = name, ''
     else:
-        last_name, first_name = map(lambda s: s.strip(), name.split(','))
+        last_name, first_name = [s.strip() for s in name.split(',')]
 
     return {
         'team': team,
@@ -219,7 +219,7 @@ def meta_from_profile_html(html):
         search = pinfo.get_text()
         fields = {'Height': 'height', 'Weight': 'weight', 'Born': 'birthdate',
                   'College': 'college'}
-        for f, key in fields.items():
+        for f, key in list(fields.items()):
             m = re.search('%s:\s+([\S ]+)' % f, search)
             if m is not None:
                 meta[key] = m.group(1)
@@ -330,7 +330,7 @@ def run():
         eprint("It is strongly recommended to find the 'players.json' file "
                "that comes with nflgame.")
         eprint("Are you sure you want to continue? [y/n] ", end='')
-        answer = raw_input()
+        answer = input()
         if answer[0].lower() != 'y':
             eprint("Quitting...")
             sys.exit(1)
@@ -345,7 +345,7 @@ def run():
         players = {}
 
         # Grab players one game a time to avoid obscene memory requirements.
-        for _, schedule in nflgame.sched.games.itervalues():
+        for _, schedule in nflgame.sched.games.values():
             # If the game is too far in the future, skip it...
             if nflgame.live._game_datetime(schedule) > nflgame.live._now():
                 continue
@@ -373,7 +373,7 @@ def run():
 
         def fetch(t):  # t[0] is the gsis_id and t[1] is the gsis name
             return t[0], t[1], profile_url(t[0])
-        for i, t in enumerate(pool.imap(fetch, players.items()), 1):
+        for i, t in enumerate(pool.imap(fetch, list(players.items())), 1):
             gid, name, purl = t
             pid = profile_id_from_url(purl)
 
@@ -446,7 +446,7 @@ def run():
     # Finally, try to scrape meta data for players who aren't on a roster
     # but have recorded a statistic in nflgame.
     gids = [(gid, meta['profile_url'])
-            for gid, meta in metas.iteritems()
+            for gid, meta in metas.items()
             if 'full_name' not in meta and 'profile_url' in meta]
     if len(gids):
         eprint('Fetching meta data for players not on a roster...')
@@ -473,7 +473,7 @@ def run():
 
     assert len(metas) > 0, "Have no players to add... ???"
     with open(args.json_update_file, 'w+') as fp:
-        json.dump(metas, fp, indent=4, sort_keys=True,
+        json.dump(bytes(metas, "utf-8"), fp, indent=4, sort_keys=True,
                   separators=(',', ': '))
 
     if len(errors) > 0:
