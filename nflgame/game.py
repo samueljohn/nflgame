@@ -9,7 +9,6 @@ import sys
 import urllib.request
 import urllib.error
 import urllib.parse
-import operators
 
 from nflgame import OrderedDict
 import nflgame.player
@@ -35,7 +34,7 @@ TeamStats = namedtuple('TeamStats',
                         'pos_time'])
 """A collection of team statistics for an entire game."""
 
-
+@total_ordering
 class FieldPosition (object):
 
     """
@@ -79,10 +78,10 @@ class FieldPosition (object):
         else:
             self.offset = 50 - yd
 
-    def __cmp__(self, other):
+    def __gt__(self, other):
         if isinstance(other, int):
-            return operators.cmp(self.offset, other)
-        return operators.cmp(self.offset, other.offset)
+            return self.offset > other
+        return self.offset > other.offset
 
     def __str__(self):
         if self.offset > 0:
@@ -249,7 +248,7 @@ class Game (object):
             else:  # For when we have rawData (fpath) and no eid.
                 game.eid = None
                 game.data = json.loads(game.rawData)
-                for k, v in game.data.items():
+                for k, v in list(game.data.items()):
                     if isinstance(v, dict):
                         game.eid = k
                         game.data = v
@@ -351,9 +350,9 @@ class Game (object):
             with gzip.open(fpath, 'wb') as f:
                 f.write(bytes(self.rawData, 'utf-8'))
         except IOError:
-            print("Could not cache JSON data. Please " \
-                                 "make '%s' writable." \
-                                 % os.path.dirname(fpath), file=sys.stderr)
+            print("Could not cache JSON data. Please "
+                  "make '{}' writable.".format(
+                       os.path.dirname(fpath)), file=sys.stderr)
 
     def nice_score(self):
         """
@@ -391,19 +390,19 @@ class Game (object):
                                                   pplay.name, pplay.home,
                                                   pplay.team)
             maxstats = {}
-            for stat, val in pplay._stats.items():
+            for stat, val in list(pplay._stats.items()):
                 maxstats[stat] = val
 
             newp._overwrite_stats(maxstats)
             max_players[pplay.playerid] = newp
 
-        for newp in max_players.values():
+        for newp in list(max_players.values()):
             for pgame in game_players:
                 if pgame.playerid != newp.playerid:
                     continue
 
                 maxstats = {}
-                for stat, val in pgame._stats.items():
+                for stat, val in list(pgame._stats.items()):
                     maxstats[stat] = max([val,
                                           newp._stats.get(stat, -_MAX_INT)])
 
@@ -602,7 +601,7 @@ class Play (object):
                     continue
                 statvals = nflgame.statmap.values(info['statId'],
                                                   info['yards'])
-                for k, v in statvals.items():
+                for k, v in list(statvals.items()):
                     v = self.__dict__.get(k, 0) + v
                     self.__dict__[k] = v
                     self._stats[k] = v
@@ -617,7 +616,7 @@ class Play (object):
         self.__players = _json_play_players(self, data['players'])
         self.players = nflgame.seq.GenPlayerStats(self.__players)
         for p in self.players:
-            for k, v in p.stats.items():
+            for k, v in list(p.stats.items()):
                 # Sometimes we may see duplicate statistics (like tackle
                 # assists). Let's just overwrite in this case, since this
                 # data is from the perspective of the play. i.e., there
@@ -721,7 +720,7 @@ def _json_play_players(play, data):
     to determine whether the player belong to the home team or not.
     """
     players = OrderedDict()
-    for playerid, statcats in data.items():
+    for playerid, statcats in list(data.items()):
         if playerid == '0':
             continue
         for info in statcats:
@@ -747,7 +746,7 @@ def _json_play_events(data):
     Takes a single JSON play entry (data) and converts it to a list of events.
     """
     temp = list()
-    for playerid, statcats in data.items():
+    for playerid, statcats in list(data.items()):
         for info in statcats:
             if info['statId'] not in nflgame.statmap.idmap:
                 continue
@@ -770,9 +769,9 @@ def _json_game_player_stats(game, data):
         for category in nflgame.statmap.categories:
             if category not in data[team]['stats']:
                 continue
-            for pid, raw in data[team]['stats'][category].items():
+            for pid, raw in list(data[team]['stats'][category].items()):
                 stats = {}
-                for k, v in raw.items():
+                for k, v in list(raw.items()):
                     if k == 'name':
                         continue
                     stats['%s_%s' % (category, k)] = v

@@ -357,7 +357,7 @@ def _now():
 def _update_week_number():
     global _cur_week, _cur_year, _cur_season_phase
 
-    dom = xml.parse(urllib.urlopen(_CUR_SCHEDULE, timeout=5))
+    dom = xml.parse(urllib.request.urlopen(_CUR_SCHEDULE, timeout=5))
     gms = dom.getElementsByTagName('gms')[0]
     _cur_week = int(gms.getAttribute('w'))
     _cur_year = int(gms.getAttribute('y'))
